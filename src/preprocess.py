@@ -30,4 +30,4 @@ print(df.head())
 
 # Ghi file kết quả
 df.to_csv(output_file, index=False)
-print(f"\n✔ Đã lưu file vào {output_file}")
+print(f"\n Đã lưu file vào {output_file}")
