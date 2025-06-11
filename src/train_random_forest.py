@@ -18,24 +18,49 @@ def train_model(product_id=None):
             print(f"Không tìm thấy dữ liệu cho product_id={product_id}")
             return None
 
-    features = ['year', 'month', 'day', 'dayofweek', 'price', 'discount_price', 'stock', 'sold', 'category_code']
+    # 👉 Gộp dữ liệu theo tháng cho từng product_id
+    df_monthly = df.groupby(['year', 'month', 'product_id']).agg({
+        'day': 'mean',
+        'dayofweek': 'mean',
+        'price': 'mean',
+        'discount_price': 'mean',
+        'stock': 'mean',
+        'sold': 'mean',
+        'quantity_sold': 'sum',           # Số lượng bán ra trong tháng
+        'category_code': 'first',
+        'trend': 'mean',
+        'is_holiday': 'sum'               # Tổng số ngày nghỉ trong tháng
+    }).reset_index()
+
+    # Danh sách đặc trưng và mục tiêu
+    features = [
+        'year', 'month', 'day', 'dayofweek',
+        'price', 'discount_price', 'stock', 'sold',
+        'category_code', 'trend', 'is_holiday'
+    ]
     target = 'quantity_sold'
 
-    X = df[features]
-    y = df[target]
+    # Loại bỏ các dòng thiếu giá trị
+    df_monthly = df_monthly.dropna(subset=features + [target])
+
+    X = df_monthly[features]
+    y = df_monthly[target]
 
     if len(X) < 2:
-        print(f"Dữ liệu cho product_id={product_id} không đủ để train (cần >= 2 mẫu).")
+        print(f"Dữ liệu sau khi gộp không đủ để train (cần >= 2 mẫu).")
         return None
 
+    # Tách tập train/test
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
 
     print(f"Số mẫu train: {len(X_train)}")
     print(f"Số mẫu test: {len(X_test)}")
 
+    # Huấn luyện mô hình Random Forest
     model = RandomForestRegressor(n_estimators=100, random_state=42)
     model.fit(X_train, y_train)
 
+    # Dự đoán và đánh giá
     y_pred = model.predict(X_test)
     score = r2_score(y_test, y_pred)
     mae = mean_absolute_error(y_test, y_pred)
@@ -54,15 +79,15 @@ def train_model(product_id=None):
     for i in range(min(5, len(y_test))):
         print(f"Dự đoán: {y_pred[i]:.2f}  |  Thực tế: {y_test.values[i]}")
 
-     # Lưu model vào thư mục riêng
+    # Lưu model
     model_dir = "../models"
     os.makedirs(model_dir, exist_ok=True)
-    model_path = os.path.join(model_dir, "model_randomforest_sales.pkl")
+    model_path = os.path.join(model_dir, "model_randomforest_monthly.pkl")
     joblib.dump(model, model_path)
-    print(f"\n Model đã được lưu")
+    print(f"\nModel đã được lưu tại: {model_path}")
 
     return {
-        "model": "Random Forest",
+        "model": "Random Forest (Monthly)",
         "mae": mae,
         "rmse": rmse,
         "r2": score,
