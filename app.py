@@ -4,6 +4,8 @@ import os
 import sys
 import joblib
 import pandas as pd
+from data.fetch_data import fetch_data_from_laravel
+from src.preprocess import preprocess_sales_data
 
 # Đường dẫn thư mục
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -18,6 +20,18 @@ from train_xgboost import train_xgboost_model
 
 app = Flask(__name__)
 CORS(app)
+
+@app.route('/fetch-data', methods=['GET'])
+def fetch_and_preprocess():
+    try:
+        fetch_msg = fetch_data_from_laravel()  # <-- Lấy dữ liệu về trước
+        preprocess_msg = preprocess_sales_data()  # <-- Sau đó mới xử lý
+        return jsonify({
+            "fetch_message": fetch_msg,
+            "preprocess_message": preprocess_msg
+        })
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 def load_data():
     if not os.path.exists(DATA_PATH):
